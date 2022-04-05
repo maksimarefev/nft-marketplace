@@ -31,7 +31,7 @@ contract NFTMarketplace is Ownable {
     /**
      * @dev Emitted when `tokenId` token is listed on an auction under the `price`
      */
-    event ListedOnAuction(uint256 indexed tokenId, uint256 minPrice);
+    event ListedOnAuction(uint256 indexed tokenId, address indexed owner, uint256 minPrice);
 
     /**
      * @dev Emitted when `tokenId` token is transferred from `buyer` to `seller` for the `price`
@@ -116,7 +116,7 @@ contract NFTMarketplace is Ownable {
         tokenIdToOwner[tokenId] = msg.sender;
         tokenIdToAuctionStart[tokenId] = block.timestamp;
         auctionTimeouts[tokenId] = block.timestamp + auctionTimeout;
-        emit ListedOnAuction(tokenId, minPrice);
+        emit ListedOnAuction(tokenId, msg.sender, minPrice);
     }
 
     /**
@@ -124,11 +124,11 @@ contract NFTMarketplace is Ownable {
      */
     function makeBid(uint256 tokenId, uint256 price) public {
         require(tokenIdToAuctionStart[tokenId] != 0, "No auction found");
-        require(tokenIdToAuctionStart[tokenId] < auctionTimeouts[tokenId], "Auction is closed");
+        require(block.timestamp < auctionTimeouts[tokenId], "Auction is closed");
         require(tokenIdToMinPrice[tokenId] <= price, "Price is less than required");
-        require(tokenIdToBid[tokenId] < price, "Last bid was greater in price");
-
+        require(tokenIdToBid[tokenId] < price, "Last bid had greater or equal price");
         require(paymentToken.balanceOf(msg.sender) >= price, "Sender does not hold sufficient balance");
+
         paymentToken.transferFrom(msg.sender, address(this), price);
 
         if (tokenIdToBidsCount[tokenId] > 0) {
