@@ -145,15 +145,19 @@ contract NFTMarketplace is Ownable {
      * @notice finishes started auction (if any) for an nft with the id `tokenId`
      */
     function finishAuction(uint256 tokenId) public {
-        require(tokenIdToAuctionStart[tokenId] >= auctionTimeouts[tokenId], "Auction is in progress");
+        require(block.timestamp > auctionTimeouts[tokenId], "Auction is in progress");
 
         if (tokenIdToBidsCount[tokenId] < mindBidsNumber) {
-            paymentToken.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
+            if (tokenIdToBidsCount[tokenId] > 0) {
+                paymentToken.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
+            }
+
+            nft.transferFrom(address(this), tokenIdToOwner[tokenId], tokenId);
+
             emit Delisted(tokenId);
         } else {
             nft.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenId);
             paymentToken.transferFrom(address(this), tokenIdToOwner[tokenId], tokenIdToBid[tokenId]);
-            tokenIdToOwner[tokenId] = tokenIdToBidderAddress[tokenId];
             emit Sold(tokenId, tokenIdToBid[tokenId], tokenIdToBidderAddress[tokenId], tokenIdToOwner[tokenId]);
         }
 
