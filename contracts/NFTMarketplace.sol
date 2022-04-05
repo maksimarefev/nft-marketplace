@@ -94,7 +94,7 @@ contract NFTMarketplace is Ownable {
      */
     function buyItem(uint256 tokenId) public {
         require(tokenIdToPrice[tokenId] != 0, "Token does not exist");
-        require(paymentToken.balanceOf(msg.sender) >= tokenIdToPrice[tokenId], "Sender does not hold sufficient balance");
+        require(paymentToken.balanceOf(msg.sender) >= tokenIdToPrice[tokenId], "Insufficient sender's balance");
 
         nft.transferFrom(address(this), msg.sender, tokenId);
         paymentToken.transferFrom(msg.sender, tokenIdToOwner[tokenId], tokenIdToPrice[tokenId]);
@@ -126,8 +126,8 @@ contract NFTMarketplace is Ownable {
         require(tokenIdToAuctionStart[tokenId] != 0, "No auction found");
         require(block.timestamp < auctionTimeouts[tokenId], "Auction is closed");
         require(tokenIdToMinPrice[tokenId] <= price, "Price is less than required");
-        require(tokenIdToBid[tokenId] < price, "Last bid had greater or equal price");
-        require(paymentToken.balanceOf(msg.sender) >= price, "Sender does not hold sufficient balance");
+        require(tokenIdToBid[tokenId] < price, "Last bid had >= price");
+        require(paymentToken.balanceOf(msg.sender) >= price, "Insufficient sender's balance");
 
         paymentToken.transferFrom(msg.sender, address(this), price);
 

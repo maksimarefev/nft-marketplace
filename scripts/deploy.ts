@@ -1,6 +1,5 @@
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import {deployMockContract} from '@ethereum-waffle/mock-contract';
 import { NFTMarketplace, NFTMarketplace__factory } from '../typechain-types';
 
 async function main() {

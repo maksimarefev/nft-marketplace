@@ -1,39 +1,12 @@
-/*
-    todo arefev:
-        const permissions = ['read', 'write', 'execute'] as const;
-        type Permission = typeof permissions[number]; // 'read' | 'write' | 'execute'
-
-        // you can iterate over permissions
-        for (const permission of permissions) {
-          // do something
-        }
-*/
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
-import { Signer, Event, BigNumber } from "ethers";
+import { Signer } from "ethers";
 import { NFTMarketplace, NFTMarketplace__factory } from "../typechain-types";
 import { deployMockContract, MockContract } from "ethereum-waffle";
 
 import IERC20 from "../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json";
 import IERC721Mintable from "../artifacts/contracts/IERC721Mintable.sol/IERC721Mintable.json";
 
-/*
-    todo arefev:
-        await mockContract.mock.<nameOfMethod>.returns(<value>)
-        await mockContract.mock.<name>.withArgs(<args>).returns(<value>)
-        await mockContract.mock.<nameOfMethod>.reverts()
-        await mockContract.mock.<name>.withArgs(<args>).reverts()
-
-        await mockContract.mock.<nameOfMethod>.reverts()
-        await mockContract.mock.<nameOfMethod>.revertsWithReason(<reason>)
-        await mockContract.mock.<nameOfMethod>.withArgs(<arguments>).reverts()
-        await mockContract.mock.<nameOfMethod>.withArgs(<arguments>).revertsWithReason(<reason>)
-
-        await expect(splitter.split({ value: 50 })).to.emit(splitter, "Transfer")
-
-        expect('balanceOf').to.be.calledOnContract(token);
-        expect('balanceOf').to.be.calledOnContractWith(token, [wallet.address]);
-*/
 describe("NFTMarketplace", function () {
 
    let bob: Signer;
@@ -71,7 +44,23 @@ describe("NFTMarketplace", function () {
    });
 
    describe("mint", async function() {
-       //todo arefev: implement
+       it("Should allow for the owner to mint tokens", async function() {
+            const tokenURI: string = "random";
+            const aliceAddress: string = await alice.getAddress();
+            await nftMock.mock.mint.withArgs(aliceAddress, tokenURI).returns();
+
+            await nftMarketplace.createItem(tokenURI, aliceAddress);
+       });
+
+       it("Should not allow for non-owner to mint tokens", async function() {
+            const tokenURI: string = "random";
+            const aliceAddress: string = await alice.getAddress();
+            await nftMock.mock.mint.withArgs(aliceAddress, tokenURI).returns();
+
+            const mintTxPromise: Promise<any> = nftMarketplace.connect(bob).createItem(tokenURI, aliceAddress);
+
+            await expect(mintTxPromise).to.be.revertedWith("Ownable: caller is not the owner");
+       });
    });
 
    describe("listing", async function() {
@@ -89,7 +78,7 @@ describe("NFTMarketplace", function () {
                 const price: number = 1;
                 await nftMock.mock.ownerOf.withArgs(tokenId).revertsWithReason("ERC721: owner query for nonexistent token");
 
-                const listItemTxPromise: any = nftMarketplace.listItem(tokenId, price);
+                const listItemTxPromise: Promise<any> = nftMarketplace.listItem(tokenId, price);
 
                 await expect(listItemTxPromise).to.be.revertedWith("ERC721: owner query for nonexistent token");
             });
@@ -98,7 +87,7 @@ describe("NFTMarketplace", function () {
                 const tokenId: number = 1;
                 const price: number = 0;
 
-                const listItemTxPromise: any = nftMarketplace.listItem(tokenId, price);
+                const listItemTxPromise: Promise<any> = nftMarketplace.listItem(tokenId, price);
 
                 await expect(listItemTxPromise).to.be.revertedWith("Price can not be set to 0");
             });
@@ -106,11 +95,10 @@ describe("NFTMarketplace", function () {
             it("Should not allow to list non-belonging token", async function () {
                 const tokenId: number = 1;
                 const price: number = 1;
-                const aliceAddress: string = await alice.getAddress();
                 const bobAddress: string = await bob.getAddress();
                 await nftMock.mock.ownerOf.withArgs(tokenId).returns(bobAddress);
 
-                const listItemTxPromise: any = nftMarketplace.listItem(tokenId, price);
+                const listItemTxPromise: Promise<any> = nftMarketplace.listItem(tokenId, price);
 
                 await expect(listItemTxPromise).to.be.revertedWith("Sender is not the token owner");
             });
@@ -122,7 +110,7 @@ describe("NFTMarketplace", function () {
                 await nftMock.mock.ownerOf.withArgs(tokenId).returns(aliceAddress);
                 await nftMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, tokenId).returns();
 
-                const listItemTxPromise: any = nftMarketplace.listItem(tokenId, price);
+                const listItemTxPromise: Promise<any> = nftMarketplace.listItem(tokenId, price);
 
                 await expect(listItemTxPromise).to.emit(nftMarketplace, "Listed").withArgs(tokenId, aliceAddress, price);
             });
@@ -139,7 +127,7 @@ describe("NFTMarketplace", function () {
             it("Should not allow to cancel non-existent token", async function() {
                 const tokenId: number = 1;
 
-                const cancelTxPromise: any = nftMarketplace.cancel(tokenId);
+                const cancelTxPromise: Promise<any> = nftMarketplace.cancel(tokenId);
 
                 await expect(cancelTxPromise).to.be.revertedWith("Token does not exist");
             });
@@ -149,7 +137,7 @@ describe("NFTMarketplace", function () {
                 const price: number = 1;
                 await listItem(tokenId, price);
 
-                const cancelTxPromise: any = nftMarketplace.connect(bob).cancel(tokenId);
+                const cancelTxPromise: Promise<any> = nftMarketplace.connect(bob).cancel(tokenId);
 
                 await expect(cancelTxPromise).to.be.revertedWith("Sender is not the token owner");
             });
@@ -161,7 +149,7 @@ describe("NFTMarketplace", function () {
                 const aliceAddress: string = await alice.getAddress();
                 await nftMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, tokenId).returns();
 
-                const cancelTxPromise: any = nftMarketplace.cancel(tokenId);
+                const cancelTxPromise: Promise<any> = nftMarketplace.cancel(tokenId);
 
                 await expect(cancelTxPromise).to.emit(nftMarketplace, "Delisted").withArgs(tokenId);
             });
@@ -177,7 +165,7 @@ describe("NFTMarketplace", function () {
             it("Should not allow to buy non-existent token", async function() {
                 const tokenId: number = 1;
 
-                const buyItemTxPromise: any = nftMarketplace.buyItem(tokenId);
+                const buyItemTxPromise: Promise<any> = nftMarketplace.buyItem(tokenId);
 
                 await expect(buyItemTxPromise).to.be.revertedWith("Token does not exist");
             });
@@ -190,9 +178,9 @@ describe("NFTMarketplace", function () {
                 const aliceAddress: string = await alice.getAddress();
                 await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(balanceOfAlice);
 
-                const buyItemTxPromise: any = nftMarketplace.buyItem(tokenId);
+                const buyItemTxPromise: Promise<any> = nftMarketplace.buyItem(tokenId);
 
-                await expect(buyItemTxPromise).to.be.revertedWith("Sender does not hold sufficient balance");
+                await expect(buyItemTxPromise).to.be.revertedWith("Insufficient sender's balance");
             });
 
             it("Should emit `Sold` event", async function() {
@@ -205,7 +193,7 @@ describe("NFTMarketplace", function () {
                 await paymentTokenMock.mock.balanceOf.withArgs(bobAddress).returns(price);
                 await paymentTokenMock.mock.transferFrom.withArgs(bobAddress, aliceAddress, price).returns(true);
 
-                const buyItemTxPromise: any = nftMarketplace.connect(bob).buyItem(tokenId);
+                const buyItemTxPromise: Promise<any> = nftMarketplace.connect(bob).buyItem(tokenId);
 
                 await expect(buyItemTxPromise).to.emit(nftMarketplace, "Sold").withArgs(tokenId, price, bobAddress, aliceAddress);
             });
@@ -227,7 +215,7 @@ describe("NFTMarketplace", function () {
                 const minPrice: number = 1;
                 await nftMock.mock.ownerOf.withArgs(tokenId).revertsWithReason("ERC721: owner query for nonexistent token");
 
-                const listItemOnAuctionTxPromise: any = nftMarketplace.listItemOnAuction(tokenId, minPrice);
+                const listItemOnAuctionTxPromise: Promise<any> = nftMarketplace.listItemOnAuction(tokenId, minPrice);
 
                 await expect(listItemOnAuctionTxPromise).to.be.revertedWith("ERC721: owner query for nonexistent token");
             });
@@ -235,11 +223,10 @@ describe("NFTMarketplace", function () {
             it("Should not allow to list non-belonging token", async function () {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
-                const aliceAddress: string = await alice.getAddress();
                 const bobAddress: string = await bob.getAddress();
                 await nftMock.mock.ownerOf.withArgs(tokenId).returns(bobAddress);
 
-                const listItemOnAuctionTxPromise: any = nftMarketplace.listItemOnAuction(tokenId, minPrice);
+                const listItemOnAuctionTxPromise: Promise<any> = nftMarketplace.listItemOnAuction(tokenId, minPrice);
 
                 await expect(listItemOnAuctionTxPromise).to.be.revertedWith("Sender is not the token owner");
             });
@@ -248,7 +235,7 @@ describe("NFTMarketplace", function () {
                 const tokenId: number = 1;
                 const minPrice: number = 0;
 
-                const listItemOnAuctionTxPromise: any = nftMarketplace.listItemOnAuction(tokenId, minPrice);
+                const listItemOnAuctionTxPromise: Promise<any> = nftMarketplace.listItemOnAuction(tokenId, minPrice);
 
                 await expect(listItemOnAuctionTxPromise).to.be.revertedWith("Minimum price can not be zero");
             });
@@ -260,7 +247,7 @@ describe("NFTMarketplace", function () {
                 await nftMock.mock.ownerOf.withArgs(tokenId).returns(aliceAddress);
                 await nftMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, tokenId).returns();
 
-                const listItemOnAuctionTxPromise: any = nftMarketplace.listItemOnAuction(tokenId, minPrice);
+                const listItemOnAuctionTxPromise: Promise<any> = nftMarketplace.listItemOnAuction(tokenId, minPrice);
 
                 await expect(listItemOnAuctionTxPromise).to.emit(nftMarketplace, "ListedOnAuction").withArgs(tokenId, aliceAddress, minPrice);
             });
@@ -282,7 +269,7 @@ describe("NFTMarketplace", function () {
                 const tokenId: number = 1;
                 const price: number = 1;
 
-                const makeBidTxPromise: any = nftMarketplace.makeBid(tokenId, price);
+                const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, price);
 
                 await expect(makeBidTxPromise).to.be.revertedWith("No auction found");
             });
@@ -295,7 +282,7 @@ describe("NFTMarketplace", function () {
                 await listItemOnAuction(tokenId, price);
 
                 await network.provider.send("evm_increaseTime", [auctionTimeout]);
-                const makeBidTxPromise: any = nftMarketplace.makeBid(tokenId, price);
+                const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, price);
 
                 await expect(makeBidTxPromise).to.be.revertedWith("Auction is closed");
             });
@@ -306,7 +293,7 @@ describe("NFTMarketplace", function () {
                 await listItemOnAuction(tokenId, minPrice);
                 const price: number = 1;
 
-                const makeBidTxPromise: any = nftMarketplace.makeBid(tokenId, price);
+                const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, price);
 
                 await expect(makeBidTxPromise).to.be.revertedWith("Price is less than required");
             });
@@ -322,9 +309,9 @@ describe("NFTMarketplace", function () {
                 await paymentTokenMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, firstBidPrice).returns(true);
 
                 await nftMarketplace.makeBid(tokenId, firstBidPrice);
-                const makeBidTxPromise: any = nftMarketplace.makeBid(tokenId, secondBidPrice);
+                const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, secondBidPrice);
 
-                await expect(makeBidTxPromise).to.be.revertedWith("Last bid had greater or equal price");
+                await expect(makeBidTxPromise).to.be.revertedWith("Last bid had >= price");
             });
 
             it("Should not allow to make a bid if the sender has no sufficient balance", async function() {
@@ -336,9 +323,9 @@ describe("NFTMarketplace", function () {
                 const aliceAddress: string = await alice.getAddress();
                 await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(aliceBalance);
 
-                const makeBidTxPromise: any = nftMarketplace.makeBid(tokenId, bidPrice);
+                const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, bidPrice);
 
-                await expect(makeBidTxPromise).to.be.revertedWith("Sender does not hold sufficient balance");
+                await expect(makeBidTxPromise).to.be.revertedWith("Insufficient sender's balance");
             });
 
             it("Should emit `BidderChanged` event", async function () {
@@ -351,7 +338,7 @@ describe("NFTMarketplace", function () {
                 await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(aliceBalance);
                 await paymentTokenMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
 
-                const makeBidTxPromise: any = nftMarketplace.makeBid(tokenId, bidPrice);
+                const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, bidPrice);
 
                 await expect(makeBidTxPromise).to.emit(nftMarketplace, "BidderChanged").withArgs(aliceAddress, tokenId, bidPrice);
             });
@@ -372,7 +359,7 @@ describe("NFTMarketplace", function () {
                 const minPrice: number = 1;
                 await listItemOnAuction(tokenId, minPrice);
 
-                const finishAuctionTxPromise: any = nftMarketplace.finishAuction(tokenId);
+                const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
 
                 await expect(finishAuctionTxPromise).to.be.revertedWith("Auction is in progress");
             });
@@ -387,7 +374,7 @@ describe("NFTMarketplace", function () {
                 await nftMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, tokenId).returns();
 
                 await network.provider.send("evm_increaseTime", [auctionTimeout]);
-                const finishAuctionTxPromise: any = nftMarketplace.finishAuction(tokenId);
+                const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
 
                 await expect(finishAuctionTxPromise).to.emit(nftMarketplace, "Delisted").withArgs(tokenId);
             });
@@ -406,13 +393,13 @@ describe("NFTMarketplace", function () {
                 await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(aliceBalance);
                 await paymentTokenMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
 
-                const makeBidTxPromise: any = nftMarketplace.makeBid(tokenId, bidPrice);
+                await nftMarketplace.makeBid(tokenId, bidPrice);
 
                 await nftMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, tokenId).returns();
                 await paymentTokenMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, bidPrice).returns(true);
 
                 await network.provider.send("evm_increaseTime", [auctionTimeout]);
-                const finishAuctionTxPromise: any = nftMarketplace.finishAuction(tokenId);
+                const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
 
                 await expect(finishAuctionTxPromise).to.emit(nftMarketplace, "Sold")
                     .withArgs(tokenId, bidPrice, aliceAddress, aliceAddress);
