@@ -1,13 +1,8 @@
 {
   "name": "nft-marketplace",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
+  "description": "A simple NFT marketplace implementation",
+  "author": "https://github.com/maksimarefev",
   "dependencies": {
     "@nomiclabs/ethereumjs-vm": "^4.2.2",
     "@nomiclabs/hardhat-ethers": "^2.0.5",

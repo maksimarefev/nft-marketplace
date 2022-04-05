@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract NFTMarketplace is Ownable {
 
-    IERC20 private paymentToken;
+    IERC20 private paymentToken; //todo arefev: transferFrom can return false
     IERC721Mintable private nft;
 
     uint256 public auctionTimeout;
@@ -26,7 +26,7 @@ contract NFTMarketplace is Ownable {
     /**
      * @dev Emitted when `tokenId` token is listed under the `price`
      */
-    event Listed(uint256 indexed tokenId, uint256 price);
+    event Listed(uint256 indexed tokenId, address indexed owner, uint256 price);
 
     /**
      * @dev Emitted when `tokenId` token is listed on an auction under the `price`
@@ -66,19 +66,21 @@ contract NFTMarketplace is Ownable {
      * @notice lists an nft with the id `tokenId` at the price `price`
      */
     function listItem(uint256 tokenId, uint256 price) public {
+        require(price > 0, "Price can not be set to 0");
         require(msg.sender == nft.ownerOf(tokenId), "Sender is not the token owner");
 
         nft.transferFrom(msg.sender, address(this), tokenId);
 
         tokenIdToPrice[tokenId] = price;
         tokenIdToOwner[tokenId] = msg.sender;
-        emit Listed(tokenId, price);
+        emit Listed(tokenId, msg.sender, price);
     }
 
     /**
      * @notice cancels listing for the given `tokenId`
      */
     function cancel(uint256 tokenId) public {
+        require(tokenIdToPrice[tokenId] != 0, "Token does not exist");
         require(tokenIdToOwner[tokenId] == msg.sender, "Sender is not the token owner");
 
         nft.transferFrom(address(this), tokenIdToOwner[tokenId], tokenId);
@@ -91,7 +93,7 @@ contract NFTMarketplace is Ownable {
      * @notice transfers a listed nft with the `tokenId` to the `msg.sender`
      */
     function buyItem(uint256 tokenId) public {
-        require(tokenIdToPrice[tokenId] != 0, "Token does not exists");
+        require(tokenIdToPrice[tokenId] != 0, "Token does not exist");
         require(paymentToken.balanceOf(msg.sender) >= tokenIdToPrice[tokenId], "Sender does not hold sufficient balance");
 
         nft.transferFrom(address(this), msg.sender, tokenId);
