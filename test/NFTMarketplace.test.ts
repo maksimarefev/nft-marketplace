@@ -1,32 +1,34 @@
-import { expect } from "chai";
+import { expect, use } from "chai";
+import { Signer, Contract } from "ethers";
 import { ethers, network } from "hardhat";
-import { Signer } from "ethers";
+import { FakeContract, smock } from "@defi-wonderland/smock";
 import { NFTMarketplace, NFTMarketplace__factory } from "../typechain-types";
-import { deployMockContract, MockContract } from "ethereum-waffle";
 
 import IERC20 from "../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json";
 import IERC721Mintable from "../artifacts/contracts/IERC721Mintable.sol/IERC721Mintable.json";
+
+use(smock.matchers);
 
 describe("NFTMarketplace", function () {
 
    let bob: Signer;
    let alice: Signer;
-   let nftMock: MockContract;
-   let paymentTokenMock: MockContract;
+   let nftMock: FakeContract<Contract>;
+   let paymentTokenMock: FakeContract<Contract>;
    let nftMarketplace: NFTMarketplace;
 
     const listItem: (tokenId: number, price: number) => void = async (tokenId: number, price: number) => {
         const aliceAddress: string = await alice.getAddress();
-        await nftMock.mock.ownerOf.withArgs(tokenId).returns(aliceAddress);
-        await nftMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, tokenId).returns();
+        await nftMock.ownerOf.whenCalledWith(tokenId).returns(aliceAddress);
+        await nftMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, tokenId).returns();
 
         await nftMarketplace.listItem(tokenId, price);
     }
 
     const listItemOnAuction: (tokenId: number, price: number) => void = async (tokenId: number, price: number) => {
         const aliceAddress: string = await alice.getAddress();
-        await nftMock.mock.ownerOf.withArgs(tokenId).returns(aliceAddress);
-        await nftMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, tokenId).returns();
+        await nftMock.ownerOf.whenCalledWith(tokenId).returns(aliceAddress);
+        await nftMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, tokenId).returns();
 
         await nftMarketplace.listItemOnAuction(tokenId, price);
     }
@@ -34,8 +36,8 @@ describe("NFTMarketplace", function () {
    beforeEach("Deploying contract", async function () {
      [alice, bob] = await ethers.getSigners();
 
-     paymentTokenMock = await deployMockContract(alice, IERC20.abi);
-     nftMock = await deployMockContract(alice, IERC721Mintable.abi);
+     paymentTokenMock = await smock.fake(IERC20.abi);
+     nftMock = await smock.fake(IERC721Mintable.abi);
 
      const NFTMarketplaceFactory: NFTMarketplace__factory =
        (await ethers.getContractFactory("NFTMarketplace")) as NFTMarketplace__factory;
@@ -47,7 +49,7 @@ describe("NFTMarketplace", function () {
        it("Should allow for the owner to mint tokens", async function() {
             const tokenURI: string = "random";
             const aliceAddress: string = await alice.getAddress();
-            await nftMock.mock.mint.withArgs(aliceAddress, tokenURI).returns();
+            await nftMock.mint.whenCalledWith(aliceAddress, tokenURI).returns();
 
             await nftMarketplace.createItem(tokenURI, aliceAddress);
        });
@@ -55,7 +57,7 @@ describe("NFTMarketplace", function () {
        it("Should not allow for non-owner to mint tokens", async function() {
             const tokenURI: string = "random";
             const aliceAddress: string = await alice.getAddress();
-            await nftMock.mock.mint.withArgs(aliceAddress, tokenURI).returns();
+            await nftMock.mint.whenCalledWith(aliceAddress, tokenURI).returns();
 
             const mintTxPromise: Promise<any> = nftMarketplace.connect(bob).createItem(tokenURI, aliceAddress);
 
@@ -64,23 +66,16 @@ describe("NFTMarketplace", function () {
    });
 
    describe("listing", async function() {
-        /*
-            todo arefev:
-             ✓ 1. Should not allow to list non-existent token
-             ✓ 2. Should not allow to list non-belonging token
-             ✓ 3. Should emit `Listed` event
-             x 4. Should transfer a token => Waffle's calledOnContractWith is not supported by Hardhat
-             ✓ 5. Should not allow to list with 0 price
-         */
         describe("listItem", async function() {
             it("Should not allow to list non-existent token", async function () {
                 const tokenId: number = 1;
                 const price: number = 1;
-                await nftMock.mock.ownerOf.withArgs(tokenId).revertsWithReason("ERC721: owner query for nonexistent token");
+                await nftMock.ownerOf.whenCalledWith(tokenId).reverts("ERC721: owner query for nonexistent token");
 
                 const listItemTxPromise: Promise<any> = nftMarketplace.listItem(tokenId, price);
 
-                await expect(listItemTxPromise).to.be.revertedWith("ERC721: owner query for nonexistent token");
+                await expect(listItemTxPromise).to.be.reverted;
+                //await expect(listItemTxPromise).to.be.revertedWith("ERC721: owner query for nonexistent token"); //todo arefev
             });
 
             it("Should not allow to list with 0 price", async function () {
@@ -96,7 +91,7 @@ describe("NFTMarketplace", function () {
                 const tokenId: number = 1;
                 const price: number = 1;
                 const bobAddress: string = await bob.getAddress();
-                await nftMock.mock.ownerOf.withArgs(tokenId).returns(bobAddress);
+                await nftMock.ownerOf.whenCalledWith(tokenId).returns(bobAddress);
 
                 const listItemTxPromise: Promise<any> = nftMarketplace.listItem(tokenId, price);
 
@@ -107,22 +102,27 @@ describe("NFTMarketplace", function () {
                 const tokenId: number = 1;
                 const price: number = 1;
                 const aliceAddress: string = await alice.getAddress();
-                await nftMock.mock.ownerOf.withArgs(tokenId).returns(aliceAddress);
-                await nftMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, tokenId).returns();
+                await nftMock.ownerOf.whenCalledWith(tokenId).returns(aliceAddress);
+                await nftMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, tokenId).returns();
 
                 const listItemTxPromise: Promise<any> = nftMarketplace.listItem(tokenId, price);
 
                 await expect(listItemTxPromise).to.emit(nftMarketplace, "Listed").withArgs(tokenId, aliceAddress, price);
             });
+
+            it("Should transfer a token to the contract", async function () {
+                const tokenId: number = 1;
+                const price: number = 1;
+                const aliceAddress: string = await alice.getAddress();
+                await nftMock.ownerOf.whenCalledWith(tokenId).returns(aliceAddress);
+                await nftMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, tokenId).returns();
+
+                await nftMarketplace.listItem(tokenId, price);
+
+                expect(nftMock.transferFrom).to.be.calledOnceWith(aliceAddress, nftMarketplace.address, tokenId);
+            });
         });
 
-        /*
-            todo arefev:
-                ✓ 1. Should not allow to cancel non-existent token
-                ✓ 2. Should not allow to cancel non-belonging token
-                ✓ 3. Should emit `Delisted` event
-                x 4. Should transfer a token back to it's owner => Waffle's calledOnContractWith is not supported by Hardhat
-         */
         describe("cancel", async function() {
             it("Should not allow to cancel non-existent token", async function() {
                 const tokenId: number = 1;
@@ -147,20 +147,27 @@ describe("NFTMarketplace", function () {
                 const price: number = 1;
                 await listItem(tokenId, price);
                 const aliceAddress: string = await alice.getAddress();
-                await nftMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, tokenId).returns();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
 
                 const cancelTxPromise: Promise<any> = nftMarketplace.cancel(tokenId);
 
                 await expect(cancelTxPromise).to.emit(nftMarketplace, "Delisted").withArgs(tokenId);
             });
+
+            it("Should transfer a token back to it's owner", async function() {
+                const tokenId: number = 1;
+                const price: number = 1;
+                await listItem(tokenId, price);
+                const aliceAddress: string = await alice.getAddress();
+                nftMock.transferFrom.reset();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
+
+                await nftMarketplace.cancel(tokenId);
+
+                expect(nftMock.transferFrom).to.be.calledOnceWith(nftMarketplace.address, aliceAddress, tokenId);
+            });
         });
 
-        /* todo arefev:
-            ✓ 1. Should not allow to buy non-existent token
-            ✓ 2. Should not allow to buy for sender with insufficient balance
-            ✓ 3. Should emit `Sold` event
-            x 4. Should transfer nft to buyer and erc20 to seller => Waffle's calledOnContractWith is not supported by Hardhat
-        */
         describe("buyItem", async function() {
             it("Should not allow to buy non-existent token", async function() {
                 const tokenId: number = 1;
@@ -176,7 +183,7 @@ describe("NFTMarketplace", function () {
                 await listItem(tokenId, price);
                 const balanceOfAlice: number = 0;
                 const aliceAddress: string = await alice.getAddress();
-                await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(balanceOfAlice);
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(balanceOfAlice);
 
                 const buyItemTxPromise: Promise<any> = nftMarketplace.buyItem(tokenId);
 
@@ -189,42 +196,65 @@ describe("NFTMarketplace", function () {
                 await listItem(tokenId, price);
                 const aliceAddress: string = await alice.getAddress();
                 const bobAddress: string = await bob.getAddress();
-                await nftMock.mock.transferFrom.withArgs(nftMarketplace.address, bobAddress, tokenId).returns();
-                await paymentTokenMock.mock.balanceOf.withArgs(bobAddress).returns(price);
-                await paymentTokenMock.mock.transferFrom.withArgs(bobAddress, aliceAddress, price).returns(true);
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, bobAddress, tokenId).returns();
+                await paymentTokenMock.balanceOf.whenCalledWith(bobAddress).returns(price);
+                await paymentTokenMock.transferFrom.whenCalledWith(bobAddress, aliceAddress, price).returns(true);
 
                 const buyItemTxPromise: Promise<any> = nftMarketplace.connect(bob).buyItem(tokenId);
 
                 await expect(buyItemTxPromise).to.emit(nftMarketplace, "Sold").withArgs(tokenId, price, bobAddress, aliceAddress);
             });
+
+            it("Should transfer nft to buyer", async function() {
+                const tokenId: number = 1;
+                const price: number = 1;
+                await listItem(tokenId, price);
+                const aliceAddress: string = await alice.getAddress();
+                const bobAddress: string = await bob.getAddress();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, bobAddress, tokenId).returns();
+                await paymentTokenMock.balanceOf.whenCalledWith(bobAddress).returns(price);
+                await paymentTokenMock.transferFrom.whenCalledWith(bobAddress, aliceAddress, price).returns(true);
+
+                await nftMarketplace.connect(bob).buyItem(tokenId);
+
+                expect(nftMock.transferFrom).to.be.calledWith(nftMarketplace.address, bobAddress, tokenId);
+            });
+
+            it("Should transfer payment tokens to seller", async function() {
+                const tokenId: number = 1;
+                const price: number = 1;
+                await listItem(tokenId, price);
+                const aliceAddress: string = await alice.getAddress();
+                const bobAddress: string = await bob.getAddress();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, bobAddress, tokenId).returns();
+                await paymentTokenMock.balanceOf.whenCalledWith(bobAddress).returns(price);
+                await paymentTokenMock.transferFrom.whenCalledWith(bobAddress, aliceAddress, price).returns(true);
+
+                await nftMarketplace.connect(bob).buyItem(tokenId);
+
+                expect(paymentTokenMock.transferFrom).to.be.calledWith(bobAddress, aliceAddress, price);
+            });
         });
    });
 
    describe("auction listing", async function() {
-        /*
-            todo arefev:
-             ✓ 1. Should not allow to list non-existent token
-             ✓ 2. Should not allow to list non-belonging token
-             ✓ 3. Should emit `ListedOnAuction` event
-             x 4. Should transfer an nft to the contract => Waffle's calledOnContractWith is not supported by Hardhat
-             ✓ 5. Should not allow to list with 0 minimum price
-         */
         describe("listItemOnAuction", async function() {
             it("Should not allow to list non-existent token", async function() {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
-                await nftMock.mock.ownerOf.withArgs(tokenId).revertsWithReason("ERC721: owner query for nonexistent token");
+                await nftMock.ownerOf.whenCalledWith(tokenId).reverts("ERC721: owner query for nonexistent token");
 
                 const listItemOnAuctionTxPromise: Promise<any> = nftMarketplace.listItemOnAuction(tokenId, minPrice);
 
-                await expect(listItemOnAuctionTxPromise).to.be.revertedWith("ERC721: owner query for nonexistent token");
+                await expect(listItemOnAuctionTxPromise).to.be.reverted; //todo arefev
+                //await expect(listItemOnAuctionTxPromise).to.be.revertedWith("ERC721: owner query for nonexistent token");
             });
 
             it("Should not allow to list non-belonging token", async function () {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
                 const bobAddress: string = await bob.getAddress();
-                await nftMock.mock.ownerOf.withArgs(tokenId).returns(bobAddress);
+                await nftMock.ownerOf.whenCalledWith(tokenId).returns(bobAddress);
 
                 const listItemOnAuctionTxPromise: Promise<any> = nftMarketplace.listItemOnAuction(tokenId, minPrice);
 
@@ -244,27 +274,28 @@ describe("NFTMarketplace", function () {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
                 const aliceAddress: string = await alice.getAddress();
-                await nftMock.mock.ownerOf.withArgs(tokenId).returns(aliceAddress);
-                await nftMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, tokenId).returns();
+                await nftMock.ownerOf.whenCalledWith(tokenId).returns(aliceAddress);
+                await nftMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, tokenId).returns();
 
                 const listItemOnAuctionTxPromise: Promise<any> = nftMarketplace.listItemOnAuction(tokenId, minPrice);
 
                 await expect(listItemOnAuctionTxPromise).to.emit(nftMarketplace, "ListedOnAuction").withArgs(tokenId, aliceAddress, minPrice);
             });
+
+            it("Should transfer an nft to the contract", async function () {
+                const tokenId: number = 1;
+                const minPrice: number = 1;
+                const aliceAddress: string = await alice.getAddress();
+                await nftMock.ownerOf.whenCalledWith(tokenId).returns(aliceAddress);
+                await nftMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, tokenId).returns();
+
+                await nftMarketplace.listItemOnAuction(tokenId, minPrice);
+
+                expect(nftMock.transferFrom).to.be.calledOnceWith(aliceAddress, nftMarketplace.address, tokenId);
+            });
         });
 
-         /*
-             todo arefev:
-                ✓ 1. Should not allow to make a bid if an auction has not started
-                ✓ 2. Should not allow to make a bid if an auction is closed
-                ✓ 3. Should not allow to make a bid if the given price is less than the minimum price
-                ✓ 4. Should not allow to make a bid if the given price is less than the last bid's price
-                ✓ 5. Should not allow to make a bid if the sender has no sufficient balance
-                ✓ 6. Should emit `BidderChanged` event
-                x 7. Should transfer payment tokens to the marketplace balance => Waffle's calledOnContractWith is not supported by Hardhat
-                x 8. Should transfer payment tokens back to the last bidder => Waffle's calledOnContractWith is not supported by Hardhat
-         */
-        describe("makeBid", async function() {
+         describe("makeBid", async function() {
             it("Should not allow to make a bid if an auction has not started", async function() {
                 const tokenId: number = 1;
                 const price: number = 1;
@@ -305,8 +336,8 @@ describe("NFTMarketplace", function () {
                 const firstBidPrice: number = 3;
                 const secondBidPrice: number = 2;
                 const aliceAddress: string = await alice.getAddress();
-                await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(firstBidPrice);
-                await paymentTokenMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, firstBidPrice).returns(true);
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(firstBidPrice);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, firstBidPrice).returns(true);
 
                 await nftMarketplace.makeBid(tokenId, firstBidPrice);
                 const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, secondBidPrice);
@@ -321,7 +352,7 @@ describe("NFTMarketplace", function () {
                 const bidPrice: number = 2;
                 const aliceBalance: number = 0;
                 const aliceAddress: string = await alice.getAddress();
-                await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
 
                 const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, bidPrice);
 
@@ -335,24 +366,47 @@ describe("NFTMarketplace", function () {
                 const bidPrice: number = 2;
                 const aliceBalance: number = 2;
                 const aliceAddress: string = await alice.getAddress();
-                await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(aliceBalance);
-                await paymentTokenMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
 
                 const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, bidPrice);
 
                 await expect(makeBidTxPromise).to.emit(nftMarketplace, "BidderChanged").withArgs(aliceAddress, tokenId, bidPrice);
             });
+
+            it("Should transfer payment tokens to the marketplace balance", async function () {
+                const tokenId: number = 1;
+                const minPrice: number = 1;
+                await listItemOnAuction(tokenId, minPrice);
+                const bidPrice: number = 2;
+                const aliceBalance: number = 2;
+                const aliceAddress: string = await alice.getAddress();
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
+
+                await nftMarketplace.makeBid(tokenId, bidPrice);
+
+                expect(paymentTokenMock.transferFrom).to.be.calledOnceWith(aliceAddress, nftMarketplace.address, bidPrice);
+            });
+
+            it("Should transfer payment tokens back to the last bidder", async function() {
+                const tokenId: number = 1;
+                const minPrice: number = 1;
+                await listItemOnAuction(tokenId, minPrice);
+                const firstBidPrice: number = 3;
+                const secondBidPrice: number = 4;
+                const aliceAddress: string = await alice.getAddress();
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(secondBidPrice);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, firstBidPrice).returns(true);
+                await paymentTokenMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, secondBidPrice).returns(true);
+
+                await nftMarketplace.makeBid(tokenId, firstBidPrice);
+                await nftMarketplace.makeBid(tokenId, secondBidPrice);
+
+                expect(paymentTokenMock.transferFrom).to.be.calledWith(nftMarketplace.address, aliceAddress, firstBidPrice);
+            });
         });
 
-        /*
-            todo arefev:
-                ✓ 1. Should not allow to finish the auction if it's still in progress
-                ✓ 2. Should emit `Delisted` event if the minimum bids number treshold was not reached
-                x 3. Should transfer payment tokens back to the last bidder if the minimum bids number treshold was not reached => Waffle's calledOnContractWith is not supported by Hardhat
-                ✓ 4. Should emit `Sold` event on finishing the auction
-                x 5. Should transfer an nft to a buyer on finishing the auction => Waffle's calledOnContractWith is not supported by Hardhat
-                x 6. Should transfer payment tokens to a seller on finishing the auction => Waffle's calledOnContractWith is not supported by Hardhat
-        */
         describe("finishAuction", async function() {
             it("Should not allow to finish the auction if it's still in progress", async function () {
                 const tokenId: number = 1;
@@ -371,7 +425,7 @@ describe("NFTMarketplace", function () {
                 const minPrice: number = 1;
                 await listItemOnAuction(tokenId, minPrice);
                 const aliceAddress: string = await alice.getAddress();
-                await nftMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, tokenId).returns();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
 
                 await network.provider.send("evm_increaseTime", [auctionTimeout]);
                 const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
@@ -390,19 +444,85 @@ describe("NFTMarketplace", function () {
                 const bidPrice: number = 2;
                 const aliceBalance: number = 2;
                 const aliceAddress: string = await alice.getAddress();
-                await paymentTokenMock.mock.balanceOf.withArgs(aliceAddress).returns(aliceBalance);
-                await paymentTokenMock.mock.transferFrom.withArgs(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
 
                 await nftMarketplace.makeBid(tokenId, bidPrice);
 
-                await nftMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, tokenId).returns();
-                await paymentTokenMock.mock.transferFrom.withArgs(nftMarketplace.address, aliceAddress, bidPrice).returns(true);
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
+                await paymentTokenMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, bidPrice).returns(true);
 
                 await network.provider.send("evm_increaseTime", [auctionTimeout]);
                 const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
 
                 await expect(finishAuctionTxPromise).to.emit(nftMarketplace, "Sold")
                     .withArgs(tokenId, bidPrice, aliceAddress, aliceAddress);
+            });
+
+            it("Should transfer payment tokens back to the last bidder if the minimum bids number treshold was not reached", async function () {
+                const auctionTimeout: number = 10;
+                await nftMarketplace.setAuctionTimeout(auctionTimeout);
+                const tokenId: number = 1;
+                const minPrice: number = 1;
+                await listItemOnAuction(tokenId, minPrice);
+                const bidPrice: number = 2;
+                const aliceBalance: number = 2;
+                const aliceAddress: string = await alice.getAddress();
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
+                await paymentTokenMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, bidPrice).returns(true);
+
+                await nftMarketplace.makeBid(tokenId, bidPrice);
+                await network.provider.send("evm_increaseTime", [auctionTimeout]);
+                await nftMarketplace.finishAuction(tokenId);
+
+                expect(paymentTokenMock.transferFrom).to.be.calledWith(nftMarketplace.address, aliceAddress, bidPrice);
+            });
+
+            it("Should transfer an nft to a buyer on finishing the auction", async function () {
+                const auctionTimeout: number = 10;
+                await nftMarketplace.setAuctionTimeout(auctionTimeout);
+                const minBidsNumber: number = 1;
+                await nftMarketplace.setMinBidsNumber(minBidsNumber);
+                const tokenId: number = 1;
+                const minPrice: number = 1;
+                await listItemOnAuction(tokenId, minPrice);
+                const bidPrice: number = 2;
+                const aliceBalance: number = 2;
+                const aliceAddress: string = await alice.getAddress();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
+                await paymentTokenMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, bidPrice).returns(true);
+
+                await nftMarketplace.makeBid(tokenId, bidPrice);
+                await network.provider.send("evm_increaseTime", [auctionTimeout]);
+                await nftMarketplace.finishAuction(tokenId);
+
+                expect(nftMock.transferFrom).to.be.calledWith(nftMarketplace.address, aliceAddress, tokenId);
+            });
+
+            it("Should transfer payment tokens to a seller on finishing the auction", async function () {
+                const auctionTimeout: number = 10;
+                await nftMarketplace.setAuctionTimeout(auctionTimeout);
+                const minBidsNumber: number = 1;
+                await nftMarketplace.setMinBidsNumber(minBidsNumber);
+                const tokenId: number = 1;
+                const minPrice: number = 1;
+                await listItemOnAuction(tokenId, minPrice);
+                const bidPrice: number = 2;
+                const aliceBalance: number = 2;
+                const aliceAddress: string = await alice.getAddress();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
+                await paymentTokenMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, bidPrice).returns(true);
+
+                await nftMarketplace.makeBid(tokenId, bidPrice);
+                await network.provider.send("evm_increaseTime", [auctionTimeout]);
+                await nftMarketplace.finishAuction(tokenId);
+
+                expect(paymentTokenMock.transferFrom).to.be.calledWith(nftMarketplace.address, aliceAddress, bidPrice);
             });
         });
    });

@@ -4,6 +4,7 @@
   "description": "A simple NFT marketplace implementation",
   "author": "https://github.com/maksimarefev",
   "dependencies": {
+    "@defi-wonderland/smock": "^2.0.7",
     "@nomiclabs/ethereumjs-vm": "^4.2.2",
     "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-etherscan": "^3.0.3",

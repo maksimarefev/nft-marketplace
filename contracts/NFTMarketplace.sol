@@ -6,7 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract NFTMarketplace is Ownable {
 
-    IERC20 private paymentToken; //todo arefev: transferFrom can return false
+    //todo arefev: transferFrom can return false; this way i actually can make coverage to be 100%
+    IERC20 private paymentToken;
     IERC721Mintable private nft;
 
     uint256 public auctionTimeout;
