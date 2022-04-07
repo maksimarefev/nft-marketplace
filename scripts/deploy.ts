@@ -1,10 +1,17 @@
+import solc from "solc";
+import path from "path";
 import { ethers } from "hardhat";
+import { readFileSync } from "fs";
+import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { NFTMarketplace, NFTMarketplace__factory } from '../typechain-types';
+import { NFTMarketplace, NFTMarketplace__factory, BeautifulImage, BeautifulImage__factory } from '../typechain-types';
 
 async function main() {
+  const nftBaseURI: string = "ipfs://"
   const paymentToken: string = "0xf468ba4c0846e712bc4e0387ad5bff0ead4cbdb5"
-  const nft: string = "0xBDDFF04CAa62bd06cfA63EcD2AD89aF78943f0ce"
+  const nftContractURI: string =  "ipfs://QmVW8oSySifTBDBvkTGC7J5r9UDCJ4Ndiig6B3EHvURt5S"
+  const minBidsNumber: number = 3;
+  const auctionTimeout: number = 3 * 24 * 60 * 60; //3 days
 
   const accounts: SignerWithAddress[] = await ethers.getSigners();
 
@@ -14,17 +21,23 @@ async function main() {
 
   console.log("Deploying contracts with the account:", accounts[0].address);
 
+  console.log("Deploying NFT contract");
+  const BeautifulImage: BeautifulImage__factory =
+        (await ethers.getContractFactory("BeautifulImage")) as BeautifulImage__factory;
+  const beautifulImage: BeautifulImage = await BeautifulImage.deploy(nftContractURI, nftBaseURI);
+  await beautifulImage.deployed();
+  console.log("NFT contract had been deployed to:", beautifulImage.address);
+
   const NFTMarketplace: NFTMarketplace__factory =
       (await ethers.getContractFactory("NFTMarketplace")) as NFTMarketplace__factory;
-  const nftMarketplace: NFTMarketplace = await NFTMarketplace.deploy(paymentToken, nft);
-
+  const nftMarketplace: NFTMarketplace =
+    await NFTMarketplace.deploy(auctionTimeout, minBidsNumber, paymentToken, beautifulImage.address);
   await nftMarketplace.deployed();
+  console.log("NFTMarketplace had been deployed to:", nftMarketplace.address);
 
-  //todo arefev: deploy nft as well
-  //todo arefev: transfer ownership of the nft to the newly created marketplace
-
-  console.log("NFTMarketplace deployed to:", nftMarketplace.address);
+  await beautifulImage.transferOwnership(nftMarketplace.address);
 }
+
 
 main()
   .then(() => process.exit(0))

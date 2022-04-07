@@ -1,15 +1,18 @@
 import { expect, use } from "chai";
-import { Signer, Contract } from "ethers";
+import { Signer, Contract, BigNumber } from "ethers";
 import { ethers, network } from "hardhat";
 import { FakeContract, smock } from "@defi-wonderland/smock";
 import { NFTMarketplace, NFTMarketplace__factory } from "../typechain-types";
 
 import IERC20 from "../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json";
-import IERC721Mintable from "../artifacts/contracts/IERC721Mintable.sol/IERC721Mintable.json";
+import BeautifulImage from "../artifacts/@m.arefev/nft/contracts/BeautifulImage.sol/BeautifulImage.json";
 
 use(smock.matchers);
 
 describe("NFTMarketplace", function () {
+
+   const minBidsNumber: number = 3;
+   const auctionTimeout: number = 3 * 24 * 60 * 60; //3 days
 
    let bob: Signer;
    let alice: Signer;
@@ -37,12 +40,13 @@ describe("NFTMarketplace", function () {
      [alice, bob] = await ethers.getSigners();
 
      paymentTokenMock = await smock.fake(IERC20.abi);
-     nftMock = await smock.fake(IERC721Mintable.abi);
+     nftMock = await smock.fake(BeautifulImage.abi);
 
      const NFTMarketplaceFactory: NFTMarketplace__factory =
        (await ethers.getContractFactory("NFTMarketplace")) as NFTMarketplace__factory;
 
-     nftMarketplace = await NFTMarketplaceFactory.deploy(paymentTokenMock.address, nftMock.address);
+     nftMarketplace =
+        await NFTMarketplaceFactory.deploy(auctionTimeout, minBidsNumber, paymentTokenMock.address, nftMock.address);
    });
 
    describe("mint", async function() {
@@ -306,8 +310,6 @@ describe("NFTMarketplace", function () {
             });
 
             it("Should not allow to make a bid if an auction is closed", async function() {
-                const auctionTimeout: number = 10;
-                await nftMarketplace.setAuctionTimeout(auctionTimeout);
                 const tokenId: number = 1;
                 const price: number = 1;
                 await listItemOnAuction(tokenId, price);
@@ -418,24 +420,20 @@ describe("NFTMarketplace", function () {
                 await expect(finishAuctionTxPromise).to.be.revertedWith("Auction is in progress");
             });
 
-            it("Should emit `Delisted` event if the minimum bids number treshold was not reached", async function () {
-                const auctionTimeout: number = 10;
-                await nftMarketplace.setAuctionTimeout(auctionTimeout);
+            it("Should emit `Delisted` event if the minimum bids number threshold was not reached", async function () {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
                 await listItemOnAuction(tokenId, minPrice);
                 const aliceAddress: string = await alice.getAddress();
                 await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
 
-                await network.provider.send("evm_increaseTime", [auctionTimeout]);
+                await network.provider.send("evm_increaseTime", [auctionTimeout + 1]);
                 const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
 
                 await expect(finishAuctionTxPromise).to.emit(nftMarketplace, "Delisted").withArgs(tokenId);
             });
 
             it("Should emit `Sold` event on finishing the auction", async function () {
-                const auctionTimeout: number = 10;
-                await nftMarketplace.setAuctionTimeout(auctionTimeout);
                 const minBidsNumber: number = 1;
                 await nftMarketplace.setMinBidsNumber(minBidsNumber);
                 const tokenId: number = 1;
@@ -459,9 +457,7 @@ describe("NFTMarketplace", function () {
                     .withArgs(tokenId, bidPrice, aliceAddress, aliceAddress);
             });
 
-            it("Should transfer payment tokens back to the last bidder if the minimum bids number treshold was not reached", async function () {
-                const auctionTimeout: number = 10;
-                await nftMarketplace.setAuctionTimeout(auctionTimeout);
+            it("Should transfer payment tokens back to the last bidder if the minimum bids number threshold was not reached", async function () {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
                 await listItemOnAuction(tokenId, minPrice);
@@ -480,8 +476,6 @@ describe("NFTMarketplace", function () {
             });
 
             it("Should transfer an nft to a buyer on finishing the auction", async function () {
-                const auctionTimeout: number = 10;
-                await nftMarketplace.setAuctionTimeout(auctionTimeout);
                 const minBidsNumber: number = 1;
                 await nftMarketplace.setMinBidsNumber(minBidsNumber);
                 const tokenId: number = 1;
@@ -503,8 +497,6 @@ describe("NFTMarketplace", function () {
             });
 
             it("Should transfer payment tokens to a seller on finishing the auction", async function () {
-                const auctionTimeout: number = 10;
-                await nftMarketplace.setAuctionTimeout(auctionTimeout);
                 const minBidsNumber: number = 1;
                 await nftMarketplace.setMinBidsNumber(minBidsNumber);
                 const tokenId: number = 1;
@@ -524,6 +516,38 @@ describe("NFTMarketplace", function () {
 
                 expect(paymentTokenMock.transferFrom).to.be.calledWith(nftMarketplace.address, aliceAddress, bidPrice);
             });
+        });
+   });
+
+   describe("misc", async function() {
+        it("Should not allow to set auction timeout to 0", async function() {
+            const setAuctionTimeoutTxPromise: Promise<any> = nftMarketplace.setAuctionTimeout(0);
+
+            await expect(setAuctionTimeoutTxPromise).to.be.revertedWith("Can not be zero");
+        });
+
+        it("Should not allow to change auction timeout", async function() {
+            const newAuctionTimeout: number = 10;
+
+            await nftMarketplace.setAuctionTimeout(newAuctionTimeout);
+
+            const setAuctionTimeout: BigNumber = await nftMarketplace.auctionTimeout();
+            expect(newAuctionTimeout).to.equal(setAuctionTimeout.toNumber());
+        });
+
+        it("Should not allow to minimum bids number to 0", async function() {
+            const setMinBidsTxPromise: Promise<any> = nftMarketplace.setMinBidsNumber(0);
+
+            await expect(setMinBidsTxPromise).to.be.revertedWith("Can not be zero");
+        });
+
+        it("Should not allow to change minimum bids number", async function() {
+            const newBidsNumber: number = 10;
+
+            await nftMarketplace.setMinBidsNumber(newBidsNumber);
+
+            const setMinBidsNumber: BigNumber = await nftMarketplace.minBidsNumber();
+            expect(newBidsNumber).to.equal(setMinBidsNumber.toNumber());
         });
    });
  });

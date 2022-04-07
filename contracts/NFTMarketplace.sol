@@ -1,17 +1,31 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.0;
 
-import "./IERC721Mintable.sol";
+import "@m.arefev/nft/contracts/BeautifulImage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/*
+todo arefev: add scripts into package.json
+    "scripts": {
+        "clean": "npx hardhat clean",
+        "chain": "npx hardhat node",
+        "deploy": "npx hardhat run --network localhost scripts/deploy.ts",
+        "deploy:rinkeby": "npx hardhat run --network rinkeby scripts/deploy.ts",
+        "test": "npx hardhat test"
+    }
+*/
 contract NFTMarketplace is Ownable {
 
-    //todo arefev: transferFrom can return false; this way i actually can make coverage to be 100%
     IERC20 private paymentToken;
-    IERC721Mintable private nft;
+    BeautifulImage private nft;
+
+    address public paymentTokenAddress;
+    address public nftAddress;
 
     uint256 public auctionTimeout;
-    uint256 public mindBidsNumber;
+    uint256 public minBidsNumber;
 
     mapping(uint256 => address) private tokenIdToOwner;
 
@@ -49,18 +63,20 @@ contract NFTMarketplace is Ownable {
      */
     event BidderChanged(address indexed newBidder, uint256 indexed tokenId, uint256 price);
 
-    constructor (address _paymentToken, address _nft) public {
-        auctionTimeout = 2 days;
-        mindBidsNumber = 2;
+    constructor (uint256 _auctionTimeout, uint256 _minBidsNumber, address _paymentToken, address _nft) public {
+        auctionTimeout = _auctionTimeout;
+        minBidsNumber = _minBidsNumber;
+        paymentTokenAddress = _paymentToken;
+        nftAddress = _nft;
         paymentToken = IERC20(_paymentToken);
-        nft = IERC721Mintable(_nft);
+        nft = BeautifulImage(_nft);
     }
 
     /**
-     * @notice mints a new nft with the provided `tokenURI` to the `tokenOwner`
+     * @notice mints a new nft with the provided `tokenCID` to the `tokenOwner`
      */
-    function createItem(string memory tokenURI, address tokenOwner) public onlyOwner {
-        nft.mint(tokenOwner, tokenURI);
+    function createItem(string memory tokenCID, address tokenOwner) public onlyOwner {
+        nft.mint(tokenOwner, tokenCID);
     }
 
     /**
@@ -148,7 +164,7 @@ contract NFTMarketplace is Ownable {
     function finishAuction(uint256 tokenId) public {
         require(block.timestamp > auctionTimeouts[tokenId], "Auction is in progress");
 
-        if (tokenIdToBidsCount[tokenId] < mindBidsNumber) {
+        if (tokenIdToBidsCount[tokenId] < minBidsNumber) {
             if (tokenIdToBidsCount[tokenId] > 0) {
                 paymentToken.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
             }
@@ -184,7 +200,7 @@ contract NFTMarketplace is Ownable {
      */
     function setMinBidsNumber(uint256 _minBidsNumber) public onlyOwner {
         require(_minBidsNumber > 0, "Can not be zero");
-        mindBidsNumber = _minBidsNumber;
+        minBidsNumber = _minBidsNumber;
     }
 
     function _clearTokenInfo(uint256 tokenId) internal {
