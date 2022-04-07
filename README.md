@@ -7,19 +7,13 @@ In the root folder create *.env* file and fill it the following properties:<br/>
 {
     ALCHEMY_API_KEY=[ALCHEMY API KEY]
     PRIVATE_KEY=[YOUR ACCOUNT's PRIVATE KEY]
+    ETHERSCAN_API_KEY=[YOUR ETHERSCAN APY KEY]
 }
 ```
 
 ## How to deploy
 1. From the root folder run ``` npm run deploy ```
 2. Save the contract address for future interactions
-
-## How to verify the contract
-1. Add the following property to the *.env* file:<br/>
-```
-    ETHERSCAN_API_KEY=[YOUR ETHERSCAN APY KEY]
-```
-2. From the root folder run ``` npm run verify -- [contract address] [constructor arguments] ```<br/>Example:<br/>```npm run verify -- 0xe1401E3EB44fdB1743FBC7DAe0773BB6A3C991ca 259200 3 0xF468ba4C0846e712Bc4E0387aD5bfF0eAD4cBdB5 0x7F3AB1C685596509A5B592CEfBf68e5c503C2054 ```
 
 ## How to run a task
 From the root folder run<br/>``` npx hardhat [task name] --network rinkeby --contract-address [contract address] --argument [argument value] ```<br/>Example:<br/>``` npx hardhat createItem --network rinkeby --contract-address 0xa9F8A1d1235De819CA9F0419AB257071e467fBb9 --token-identifier QmVW8oSySifTBDBvkTGC7J5r9UDCJ4Ndiig6B3EHvURt5S --token-owner 0x12D8F31923Aa0ACC543b96733Bc0ed348Ef44970 ```
