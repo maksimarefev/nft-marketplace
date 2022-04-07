@@ -104,10 +104,7 @@ contract NFTMarketplace is Ownable {
         require(paymentToken.balanceOf(msg.sender) >= tokenIdToPrice[tokenId], "Insufficient sender's balance");
 
         nft.transferFrom(address(this), msg.sender, tokenId);
-        require(
-            paymentToken.transferFrom(msg.sender, tokenIdToOwner[tokenId], tokenIdToPrice[tokenId]),
-            "Payment token transfer failed"
-        );
+        _sendPayments(msg.sender, tokenIdToOwner[tokenId], tokenIdToPrice[tokenId]);
 
         emit Sold(tokenId, tokenIdToPrice[tokenId], msg.sender, tokenIdToOwner[tokenId]);
         _clearTokenInfo(tokenId);
@@ -139,7 +136,7 @@ contract NFTMarketplace is Ownable {
         require(tokenIdToBid[tokenId] < price, "Last bid had >= price");
         require(paymentToken.balanceOf(msg.sender) >= price, "Insufficient sender's balance");
 
-        require(paymentToken.transferFrom(msg.sender, address(this), price), "Payment token transfer failed");
+        _sendPayments(msg.sender, address(this), price);
 
         if (tokenIdToBidsCount[tokenId] > 0) {
             _sendPayments(tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
@@ -203,5 +200,9 @@ contract NFTMarketplace is Ownable {
 
     function _sendPayments(address to, uint256 amount) internal {
         require(paymentToken.transfer(to, amount), "Payment token transfer failed");
+    }
+
+    function _sendPayments(address from, address to, uint256 amount) internal {
+        require(paymentToken.transferFrom(from, to, amount), "Payment token transfer failed");
     }
 }
