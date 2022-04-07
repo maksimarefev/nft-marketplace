@@ -87,7 +87,7 @@ contract NFTMarketplace is Ownable {
      * @notice cancels listing for the given `tokenId`
      */
     function cancel(uint256 tokenId) public {
-        require(tokenIdToPrice[tokenId] != 0, "Token does not exist");
+        require(tokenIdToPrice[tokenId] != 0, "Token is not listed");
         require(tokenIdToOwner[tokenId] == msg.sender, "Sender is not the token owner");
 
         nft.transferFrom(address(this), tokenIdToOwner[tokenId], tokenId);
@@ -100,11 +100,11 @@ contract NFTMarketplace is Ownable {
      * @notice transfers a listed nft with the `tokenId` to the `msg.sender`
      */
     function buyItem(uint256 tokenId) public {
-        require(tokenIdToPrice[tokenId] != 0, "Token does not exist");
+        require(tokenIdToPrice[tokenId] != 0, "Token is not listed");
         require(paymentToken.balanceOf(msg.sender) >= tokenIdToPrice[tokenId], "Insufficient sender's balance");
 
         nft.transferFrom(address(this), msg.sender, tokenId);
-        paymentToken.transferFrom(msg.sender, tokenIdToOwner[tokenId], tokenIdToPrice[tokenId]);
+        _sendPayments(msg.sender, tokenIdToOwner[tokenId], tokenIdToPrice[tokenId]);
 
         emit Sold(tokenId, tokenIdToPrice[tokenId], msg.sender, tokenIdToOwner[tokenId]);
         _clearTokenInfo(tokenId);
@@ -136,10 +136,10 @@ contract NFTMarketplace is Ownable {
         require(tokenIdToBid[tokenId] < price, "Last bid had >= price");
         require(paymentToken.balanceOf(msg.sender) >= price, "Insufficient sender's balance");
 
-        paymentToken.transferFrom(msg.sender, address(this), price);
+        require(paymentToken.transferFrom(msg.sender, address(this), price), "Payment token transfer failed");
 
         if (tokenIdToBidsCount[tokenId] > 0) {
-            paymentToken.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
+            _sendPayments(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
         }
 
         tokenIdToBidderAddress[tokenId] = msg.sender;
@@ -152,11 +152,11 @@ contract NFTMarketplace is Ownable {
      * @notice finishes started auction (if any) for an nft with the id `tokenId`
      */
     function finishAuction(uint256 tokenId) public {
-        require(block.timestamp > auctionTimeouts[tokenId], "Auction is in progress");
+        require(block.timestamp >= auctionTimeouts[tokenId], "Auction is in progress");
 
         if (tokenIdToBidsCount[tokenId] < minBidsNumber) {
             if (tokenIdToBidsCount[tokenId] > 0) {
-                paymentToken.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
+                _sendPayments(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
             }
 
             nft.transferFrom(address(this), tokenIdToOwner[tokenId], tokenId);
@@ -164,7 +164,7 @@ contract NFTMarketplace is Ownable {
             emit Delisted(tokenId);
         } else {
             nft.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenId);
-            paymentToken.transferFrom(address(this), tokenIdToOwner[tokenId], tokenIdToBid[tokenId]);
+            _sendPayments(address(this), tokenIdToOwner[tokenId], tokenIdToBid[tokenId]);
             emit Sold(tokenId, tokenIdToBid[tokenId], tokenIdToBidderAddress[tokenId], tokenIdToOwner[tokenId]);
         }
 
@@ -196,5 +196,9 @@ contract NFTMarketplace is Ownable {
     function _clearTokenInfo(uint256 tokenId) internal {
         delete tokenIdToPrice[tokenId];
         delete tokenIdToOwner[tokenId];
+    }
+
+    function _sendPayments(address from, address to, uint256 amount) internal {
+        require(paymentToken.transferFrom(from, to, amount), "Payment token transfer failed");
     }
 }

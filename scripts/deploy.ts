@@ -1,8 +1,4 @@
-import solc from "solc";
-import path from "path";
 import { ethers } from "hardhat";
-import { readFileSync } from "fs";
-import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { NFTMarketplace, NFTMarketplace__factory, BeautifulImage, BeautifulImage__factory } from '../typechain-types';
 

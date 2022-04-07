@@ -133,7 +133,7 @@ describe("NFTMarketplace", function () {
 
                 const cancelTxPromise: Promise<any> = nftMarketplace.cancel(tokenId);
 
-                await expect(cancelTxPromise).to.be.revertedWith("Token does not exist");
+                await expect(cancelTxPromise).to.be.revertedWith("Token is not listed");
             });
 
             it("Should not allow to cancel non-belonging token", async function() {
@@ -178,7 +178,7 @@ describe("NFTMarketplace", function () {
 
                 const buyItemTxPromise: Promise<any> = nftMarketplace.buyItem(tokenId);
 
-                await expect(buyItemTxPromise).to.be.revertedWith("Token does not exist");
+                await expect(buyItemTxPromise).to.be.revertedWith("Token is not listed");
             });
 
             it("Should not allow to buy for sender with insufficient balance", async function() {
@@ -207,6 +207,21 @@ describe("NFTMarketplace", function () {
                 const buyItemTxPromise: Promise<any> = nftMarketplace.connect(bob).buyItem(tokenId);
 
                 await expect(buyItemTxPromise).to.emit(nftMarketplace, "Sold").withArgs(tokenId, price, bobAddress, aliceAddress);
+            });
+
+            it("Should not allow to buy when payment token contract fails at transferring", async function() {
+                const tokenId: number = 1;
+                const price: number = 1;
+                await listItem(tokenId, price);
+                const aliceAddress: string = await alice.getAddress();
+                const bobAddress: string = await bob.getAddress();
+                await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, bobAddress, tokenId).returns();
+                await paymentTokenMock.balanceOf.whenCalledWith(bobAddress).returns(price);
+                await paymentTokenMock.transferFrom.whenCalledWith(bobAddress, aliceAddress, price).returns(false);
+
+                const buyItemTxPromise: Promise<any> = nftMarketplace.connect(bob).buyItem(tokenId);
+
+                await expect(buyItemTxPromise).to.be.revertedWith("Payment token transfer failed");
             });
 
             it("Should transfer nft to buyer", async function() {
@@ -376,6 +391,21 @@ describe("NFTMarketplace", function () {
                 await expect(makeBidTxPromise).to.emit(nftMarketplace, "BidderChanged").withArgs(aliceAddress, tokenId, bidPrice);
             });
 
+            it("Should not allow to make a bid if the payment token contract failed at transferring", async function () {
+                const tokenId: number = 1;
+                const minPrice: number = 1;
+                await listItemOnAuction(tokenId, minPrice);
+                const bidPrice: number = 2;
+                const aliceBalance: number = 2;
+                const aliceAddress: string = await alice.getAddress();
+                await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(false);
+
+                const makeBidTxPromise: Promise<any> = nftMarketplace.makeBid(tokenId, bidPrice);
+
+                await expect(makeBidTxPromise).to.be.revertedWith("Payment token transfer failed");
+            });
+
             it("Should transfer payment tokens to the marketplace balance", async function () {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
@@ -400,7 +430,8 @@ describe("NFTMarketplace", function () {
                 const aliceAddress: string = await alice.getAddress();
                 await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(secondBidPrice);
                 await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, firstBidPrice).returns(true);
-                await paymentTokenMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, secondBidPrice).returns(true);
+                await paymentTokenMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, firstBidPrice).returns(true);
+                await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, secondBidPrice).returns(true);
 
                 await nftMarketplace.makeBid(tokenId, firstBidPrice);
                 await nftMarketplace.makeBid(tokenId, secondBidPrice);

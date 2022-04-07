@@ -35,56 +35,58 @@ From the root folder run ``` npx hardhat coverage ```
 ```
 NFTMarketplace
     mint
-      √ Should allow for the owner to mint tokens (61ms)
+      √ Should allow for the owner to mint tokens (59ms)
       √ Should not allow for non-owner to mint tokens (42ms)
     listing
       listItem
-        √ Should not allow to list non-existent token
+        √ Should not allow to list non-existent token (41ms)
         √ Should not allow to list with 0 price
         √ Should not allow to list non-belonging token
-        √ Should emit `Listed` event (49ms)
-        √ Should transfer a token to the contract
+        √ Should emit `Listed` event (47ms)
+        √ Should transfer a token to the contract (46ms)
       cancel
         √ Should not allow to cancel non-existent token
-        √ Should not allow to cancel non-belonging token (57ms)
+        √ Should not allow to cancel non-belonging token (59ms)
         √ Should emit `Delisted` event (79ms)
-        √ Should transfer a token back to it's owner (79ms)
+        √ Should transfer a token back to it's owner (76ms)
       buyItem
         √ Should not allow to buy non-existent token
-        √ Should not allow to buy for sender with insufficient balance (59ms)
-        √ Should emit `Sold` event (79ms)
-        √ Should transfer nft to buyer (79ms)
-        √ Should transfer payment tokens to seller (77ms)
+        √ Should not allow to buy for sender with insufficient balance (60ms)
+        √ Should emit `Sold` event (78ms)
+        √ Should not allow to buy when payment token contract fails at transferring (71ms)
+        √ Should transfer nft to buyer (77ms)
+        √ Should transfer payment tokens to seller (79ms)
     auction listing
       listItemOnAuction
         √ Should not allow to list non-existent token
         √ Should not allow to list non-belonging token
         √ Should not allow to list with 0 minimum price
-        √ Should emit `ListedOnAuction` event (48ms)
-        √ Should transfer an nft to the contract (47ms)
+        √ Should emit `ListedOnAuction` event (47ms)
+        √ Should transfer an nft to the contract (48ms)
       makeBid
         √ Should not allow to make a bid if an auction has not started
         √ Should not allow to make a bid if an auction is closed (58ms)
         √ Should not allow to make a bid if the given price is less than the minimum price (57ms)
-        √ Should not allow to make a bid if the given price is less than the last bid's price (92ms)
-        √ Should not allow to make a bid if the sender has no sufficient balance (47ms)
-        √ Should emit `BidderChanged` event (78ms)
-        √ Should transfer payment tokens to the marketplace balance (77ms)
-        √ Should transfer payment tokens back to the last bidder (109ms)
+        √ Should not allow to make a bid if the given price is less than the last bid's price (90ms)
+        √ Should not allow to make a bid if the sender has no sufficient balance (64ms)
+        √ Should emit `BidderChanged` event (79ms)
+        √ Should not allow to make a bid if the payment token contract failed at transferring (65ms)
+        √ Should transfer payment tokens to the marketplace balance (79ms)
+        √ Should transfer payment tokens back to the last bidder (93ms)
       finishAuction
         √ Should not allow to finish the auction if it's still in progress (57ms)
-        √ Should emit `Delisted` event if the minimum bids number threshold was not reached (79ms)
-        √ Should emit `Sold` event on finishing the auction (123ms)
-        √ Should transfer payment tokens back to the last bidder if the minimum bids number threshold was not reached (110ms)
-        √ Should transfer an nft to a buyer on finishing the auction (123ms)
-        √ Should transfer payment tokens to a seller on finishing the auction (126ms)
+        √ Should emit `Delisted` event if the minimum bids number threshold was not reached (108ms)
+        √ Should emit `Sold` event on finishing the auction (127ms)
+        √ Should transfer payment tokens back to the last bidder if the minimum bids number threshold was not reached (109ms)
+        √ Should transfer an nft to a buyer on finishing the auction (124ms)
+        √ Should transfer payment tokens to a seller on finishing the auction (125ms)
     misc
       √ Should not allow to set auction timeout to 0
       √ Should not allow to change auction timeout (40ms)
       √ Should not allow to minimum bids number to 0
       √ Should not allow to change minimum bids number
 
-  39 passing (6s)
+  41 passing (6s)
 ```
 | File                   | % Stmts    | % Branch   | % Funcs    | % Lines    | Uncovered Lines  |
 |------------------------|------------|------------|------------|------------|------------------|
