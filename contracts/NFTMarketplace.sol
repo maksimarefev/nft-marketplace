@@ -152,6 +152,7 @@ contract NFTMarketplace is Ownable {
      * @notice finishes started auction (if any) for an nft with the id `tokenId`
      */
     function finishAuction(uint256 tokenId) public {
+        require(tokenIdToAuctionStart[tokenId] != 0, "No auction found");
         require(block.timestamp >= auctionTimeouts[tokenId], "Auction is in progress");
 
         if (tokenIdToBidsCount[tokenId] < minBidsNumber) {

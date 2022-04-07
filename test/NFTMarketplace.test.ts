@@ -470,6 +470,14 @@ describe("NFTMarketplace", function () {
                 await expect(finishAuctionTxPromise).to.be.revertedWith("Auction is in progress");
             });
 
+            it("Should not allow to finish the auction if there is no auction started", async function () {
+                const tokenId: number = 1;
+
+                const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
+
+                await expect(finishAuctionTxPromise).to.be.revertedWith("No auction found");
+            });
+
             it("Should emit `Delisted` event if the minimum bids number threshold was not reached", async function () {
                 const tokenId: number = 1;
                 const minPrice: number = 1;
