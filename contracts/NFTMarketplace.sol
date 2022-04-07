@@ -104,7 +104,10 @@ contract NFTMarketplace is Ownable {
         require(paymentToken.balanceOf(msg.sender) >= tokenIdToPrice[tokenId], "Insufficient sender's balance");
 
         nft.transferFrom(address(this), msg.sender, tokenId);
-        _sendPayments(msg.sender, tokenIdToOwner[tokenId], tokenIdToPrice[tokenId]);
+        require(
+            paymentToken.transferFrom(msg.sender, tokenIdToOwner[tokenId], tokenIdToPrice[tokenId]),
+            "Payment token transfer failed"
+        );
 
         emit Sold(tokenId, tokenIdToPrice[tokenId], msg.sender, tokenIdToOwner[tokenId]);
         _clearTokenInfo(tokenId);
@@ -139,7 +142,7 @@ contract NFTMarketplace is Ownable {
         require(paymentToken.transferFrom(msg.sender, address(this), price), "Payment token transfer failed");
 
         if (tokenIdToBidsCount[tokenId] > 0) {
-            _sendPayments(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
+            _sendPayments(tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
         }
 
         tokenIdToBidderAddress[tokenId] = msg.sender;
@@ -156,7 +159,7 @@ contract NFTMarketplace is Ownable {
 
         if (tokenIdToBidsCount[tokenId] < minBidsNumber) {
             if (tokenIdToBidsCount[tokenId] > 0) {
-                _sendPayments(address(this), tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
+                _sendPayments(tokenIdToBidderAddress[tokenId], tokenIdToBid[tokenId]);
             }
 
             nft.transferFrom(address(this), tokenIdToOwner[tokenId], tokenId);
@@ -164,7 +167,7 @@ contract NFTMarketplace is Ownable {
             emit Delisted(tokenId);
         } else {
             nft.transferFrom(address(this), tokenIdToBidderAddress[tokenId], tokenId);
-            _sendPayments(address(this), tokenIdToOwner[tokenId], tokenIdToBid[tokenId]);
+            _sendPayments(tokenIdToOwner[tokenId], tokenIdToBid[tokenId]);
             emit Sold(tokenId, tokenIdToBid[tokenId], tokenIdToBidderAddress[tokenId], tokenIdToOwner[tokenId]);
         }
 
@@ -198,7 +201,7 @@ contract NFTMarketplace is Ownable {
         delete tokenIdToOwner[tokenId];
     }
 
-    function _sendPayments(address from, address to, uint256 amount) internal {
-        require(paymentToken.transferFrom(from, to, amount), "Payment token transfer failed");
+    function _sendPayments(address to, uint256 amount) internal {
+        require(paymentToken.transfer(to, amount), "Payment token transfer failed");
     }
 }
