@@ -6,16 +6,6 @@ import "@m.arefev/nft/contracts/BeautifulImage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/*
-todo arefev: add scripts into package.json
-    "scripts": {
-        "clean": "npx hardhat clean",
-        "chain": "npx hardhat node",
-        "deploy": "npx hardhat run --network localhost scripts/deploy.ts",
-        "deploy:rinkeby": "npx hardhat run --network rinkeby scripts/deploy.ts",
-        "test": "npx hardhat test"
-    }
-*/
 contract NFTMarketplace is Ownable {
 
     IERC20 private paymentToken;
