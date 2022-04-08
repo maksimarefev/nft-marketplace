@@ -502,12 +502,10 @@ describe("NFTMarketplace", function () {
                 const aliceAddress: string = await alice.getAddress();
                 await paymentTokenMock.balanceOf.whenCalledWith(aliceAddress).returns(aliceBalance);
                 await paymentTokenMock.transferFrom.whenCalledWith(aliceAddress, nftMarketplace.address, bidPrice).returns(true);
-
-                await nftMarketplace.makeBid(tokenId, bidPrice);
-
                 await nftMock.transferFrom.whenCalledWith(nftMarketplace.address, aliceAddress, tokenId).returns();
                 await paymentTokenMock.transfer.whenCalledWith(aliceAddress, bidPrice).returns(true);
 
+                await nftMarketplace.makeBid(tokenId, bidPrice);
                 await network.provider.send("evm_increaseTime", [auctionTimeout]);
                 const finishAuctionTxPromise: Promise<any> = nftMarketplace.finishAuction(tokenId);
 
